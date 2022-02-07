@@ -1,0 +1,15 @@
+# Vim undo files.
+# #######################
+*.un~
+
+# Python #
+# full gitignore example https://github.com/github/gitignore/blob/main/Python.gitignore
+# #######################
+*.pyc
+__pycache__/
+*.py[cod]
+*.swp
+dist
+*.egg-info
+build
+
