@@ -1,6 +1,7 @@
 from importlib import resources
 import json
 
+
 __version__ = "2.1.0"
 
 # Read URL from config file
