@@ -5,12 +5,10 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pyneng"
-version = "2.2.1"
+version = "2.2.4"
 description = "CLI tool to run tests in pyneng book/course"
 readme = "README.md"
-author = "Natasha Samoylenko"
-author-email = "natasha.samoylenko@gmail.com"
-license = { file = "LICENSE" }
+authors = [{ name = "Natasha Samoylenko", email = "natasha.samoylenko@gmail.com" }]
 classifiers = [
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python",
