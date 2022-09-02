@@ -1,5 +1,6 @@
 import sys
 import subprocess
+from platform import system as system_name
 import re
 import os
 from pprint import pprint
@@ -52,6 +53,7 @@ DB_TASK_DIRS = [
     "task_25_5a",
     "task_25_6",
 ]
+
 
 class PynengError(Exception):
     """
@@ -141,6 +143,14 @@ class CustomTasksType(click.ParamType):
         return sorted(test_files), sorted(tasks_without_tests)
 
 
+def git_push():
+    """
+    Функция вызывает git push для Windows
+    """
+    command = f"git push origin {DEFAULT_BRANCH}"
+    print("#" * 20, command)
+    result = subprocess.run(command, shell=True)
+
 
 def call_command(command, verbose=True, return_stdout=False, return_stderr=False):
     """
@@ -169,7 +179,7 @@ def call_command(command, verbose=True, return_stdout=False, return_stderr=False
     return result.returncode
 
 
-def post_comment_to_last_commit(msg, repo, delta_days=14):
+def post_comment_to_last_commit(msg, repo, delta_days=60):
     """
     Написать комментарий о сдаче заданий в последнем коммите.
     Комментарий пишется через Github API.
@@ -197,7 +207,7 @@ def post_comment_to_last_commit(msg, repo, delta_days=14):
         try:
             last = commits[0]
         except IndexError:
-            print("За указанный период времени не найдено коммитов")
+            print(f"За указанный период времени {delta_days} дней не найдено коммитов")
         else:
             last.create_comment(msg)
             return last
@@ -217,6 +227,7 @@ def get_repo(search_pattern=r"online-\d+-\w+-\w+"):
             )
         )
 
+
 def send_tasks_to_check(passed_tasks, git_add_all=False):
     """
     Функция отбирает все задания, которые прошли
@@ -227,8 +238,7 @@ def send_tasks_to_check(passed_tasks, git_add_all=False):
     что задания сдаются на проверку с помощью функции post_comment_to_last_commit.
     """
     ok_tasks = [
-        re.sub(r".*(task_\d+_\w+.py)", r"\1", filename)
-        for filename in passed_tasks
+        re.sub(r".*(task_\d+_\w+.py)", r"\1", filename) for filename in passed_tasks
     ]
     tasks_num_only = sorted(
         [task.replace("task_", "").replace(".py", "") for task in ok_tasks]
@@ -245,7 +255,12 @@ def send_tasks_to_check(passed_tasks, git_add_all=False):
     if git_add_all:
         call_command("git add .")
     call_command(f'git commit -m "{message}"')
-    call_command(f"git push origin {DEFAULT_BRANCH}")
+    windows = True if system_name().lower() == "windows" else False
+
+    if windows:
+        git_push()
+    else:
+        call_command(f"git push origin {DEFAULT_BRANCH}")
 
     repo = get_repo()
     last = post_comment_to_last_commit(message, repo)
@@ -256,6 +271,21 @@ def send_tasks_to_check(passed_tasks, git_add_all=False):
             f"можно посмотреть по ссылке https://github.com/pyneng/{repo}/commit/{commit_number}"
         )
     )
+
+
+def save_all_changes_to_github():
+    status = call_command("git status -s", return_stdout=True)
+    if not status:
+        return
+    message = "Все изменения сохранены"
+    call_command("git add .")
+    call_command(f'git commit -m "{message}"')
+    windows = True if system_name().lower() == "windows" else False
+
+    if windows:
+        git_push()
+    else:
+        call_command(f"git push origin {DEFAULT_BRANCH}")
 
 
 def test_run_for_github_token():
@@ -370,10 +400,10 @@ def copy_answer_files(passed_tasks, pth):
         answer_name = test_file.replace("test_", "answer_")
         answer_name = re.search(r"answer_task_\w+\.py", answer_name).group()
         if not os.path.exists(f"{pth}/{answer_name}"):
-            #call_command(
+            # call_command(
             #    f"cp {task_name} {pth}/{answer_name}",
             #    verbose=False,
-            #)
+            # )
             shutil.copy2(task_name, f"{pth}/{answer_name}")
 
 
@@ -410,9 +440,21 @@ def copy_answer_files(passed_tasks, pth):
 @click.option("--default-branch", "-b", default="main")
 @click.option("--test-token", is_flag=True, help="Проверить работу токена")
 @click.option(
-    "--all", "git_add_all", is_flag=True, help="Добавлять на GitHub все файлы в текущем каталоге: git add ."
+    "--all",
+    "save_all_to_github",
+    is_flag=True,
+    help="Сохранить на GitHub все измененные файлы в текущем каталоге",
 )
-def cli(tasks, disable_verbose, answer, check, debug, default_branch, test_token, git_add_all):
+def cli(
+    tasks,
+    disable_verbose,
+    answer,
+    check,
+    debug,
+    default_branch,
+    test_token,
+    save_all_to_github,
+):
     """
     Запустить тесты для заданий TASKS. По умолчанию запустятся все тесты.
 
@@ -490,7 +532,13 @@ def cli(tasks, disable_verbose, answer, check, debug, default_branch, test_token
             token = os.environ.get("GITHUB_TOKEN")
             if not token:
                 raise PynengError(token_error)
-            send_tasks_to_check(passed_tasks + tasks_without_tests, git_add_all)
+            send_tasks_to_check(
+                passed_tasks + tasks_without_tests, git_add_all=save_all_to_github
+            )
+
+    # если добавлен флаг --all, надо сохранить все изменения на github
+    if save_all_to_github:
+        save_all_changes_to_github()
 
 
 if __name__ == "__main__":
