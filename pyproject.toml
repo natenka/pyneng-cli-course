@@ -5,10 +5,11 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pyneng"
-version = "2.1.0"
+version = "2.2.1"
 description = "CLI tool to run tests in pyneng book/course"
 readme = "README.md"
-authors = [{ name = "Natasha Samoylenko", email = "natasha.samoylenko@gmail.com" }]
+author = "Natasha Samoylenko"
+author-email = "natasha.samoylenko@gmail.com"
 license = { file = "LICENSE" }
 classifiers = [
     "License :: OSI Approved :: MIT License",
@@ -21,8 +22,7 @@ dependencies = [
 	"pyyaml",
 	"pytest",
 	"pytest-clarity",
-	"pytest-json-report",
-	"requests",
+	"pytest-json-report >= 1.2",
 	"PyGithub",
 	"six",
 	"jinja2",

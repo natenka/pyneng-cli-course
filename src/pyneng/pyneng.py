@@ -19,7 +19,6 @@ import click
 import yaml
 import pytest
 from pytest_jsonreport.plugin import JSONReport
-import requests
 import github
 
 from pyneng import ANSWERS_URL, TASKS_URL, DEFAULT_BRANCH, TASK_DIRS, DB_TASK_DIRS
