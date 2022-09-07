@@ -21,7 +21,7 @@ import pytest
 from pytest_jsonreport.plugin import JSONReport
 import github
 
-from pyneng import (
+from pyneng_cli_course import (
     ANSWERS_URL,
     TASKS_URL,
     DEFAULT_BRANCH,
