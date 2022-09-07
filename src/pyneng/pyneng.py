@@ -21,7 +21,14 @@ import pytest
 from pytest_jsonreport.plugin import JSONReport
 import github
 
-from pyneng import ANSWERS_URL, TASKS_URL, DEFAULT_BRANCH, TASK_DIRS, DB_TASK_DIRS
+from pyneng import (
+    ANSWERS_URL,
+    TASKS_URL,
+    DEFAULT_BRANCH,
+    TASK_DIRS,
+    DB_TASK_DIRS,
+    STUDENT_REPO_TEMPLATE,
+)
 
 
 class PynengError(Exception):
@@ -182,7 +189,7 @@ def post_comment_to_last_commit(msg, repo, delta_days=60):
             return last
 
 
-def get_repo(search_pattern=r"online-\d+-\w+-\w+"):
+def get_repo(search_pattern=STUDENT_REPO_TEMPLATE):
     git_remote = call_command("git remote -v", return_stdout=True)
     repo_match = re.search(search_pattern, git_remote)
     if repo_match:
@@ -191,8 +198,8 @@ def get_repo(search_pattern=r"online-\d+-\w+-\w+"):
     else:
         raise PynengError(
             red(
-                "Не найден репозиторий online-x-имя-фамилия. "
-                "pyneng надо вызывать в репозитории подготовленном для курса."
+                f"Не найден репозиторий {STUDENT_REPO_TEMPLATE}. "
+                f"pyneng надо вызывать в репозитории подготовленном для курса."
             )
         )
 
@@ -323,7 +330,7 @@ def copy_answers(passed_tasks):
     if os.path.exists("pyneng-answers"):
         shutil.rmtree("pyneng-answers", onerror=remove_readonly)
     returncode, stderr = call_command(
-        "git clone https://github.com/natenka/pyneng-answers",
+        f"git clone {ANSWERS_URL} pyneng-answers",
         verbose=False,
         return_stderr=True,
     )
@@ -451,14 +458,14 @@ def cli(
     Флаг -c сдает на проверку задания (пишет комментарий на github)
     для которых прошли тесты.
     Для сдачи заданий на проверку надо сгенерировать токен github.
-    Подробнее в инструкции: https://pyneng.github.io/docs/pyneng-prepare/
+    Подробнее в инструкции: https://pyneng.natenka.io/docs/pyneng-prepare/
     """
     global DEFAULT_BRANCH
     if default_branch != "main":
         DEFAULT_BRANCH = default_branch
     token_error = red(
         "Для сдачи заданий на проверку надо сгенерировать токен github. "
-        "Подробнее в инструкции: https://pyneng.github.io/docs/pyneng-prepare/"
+        "Подробнее в инструкции: https://pyneng.natenka.io/docs/pyneng-prepare/"
     )
     if test_token:
         test_run_for_github_token()

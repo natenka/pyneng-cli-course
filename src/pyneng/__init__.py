@@ -1,14 +1,10 @@
-from importlib import resources
-import json
+__version__ = "2.2.6"
 
-
-__version__ = "2.1.0"
-
-# Read URL from config file
-_cfg = json.loads(resources.read_text("pyneng", "config.json"))
-ANSWERS_URL = _cfg["answers_url"]
-TASKS_URL = _cfg["tasks_url"]
+ANSWERS_URL = "https://github.com/pyneng/pyneng-course-answers"
+# needed for tasks/tests updates
+TASKS_URL = "https://github.com/pyneng/pyneng-course-tasks"
 DEFAULT_BRANCH = "main"
+STUDENT_REPO_TEMPLATE = r"online-\d+-\w+-\w+"
 TASK_DIRS = [
     "04_data_structures",
     "05_basic_scripts",
@@ -38,4 +34,12 @@ DB_TASK_DIRS = [
     "task_25_5a",
     "task_25_6",
 ]
+
+# from importlib import resources
+# import json
+#
+# Read URL from config file
+# _cfg = json.loads(resources.read_text("pyneng", "config.json"))
+# ANSWERS_URL = _cfg["answers_url"]
+# TASKS_URL = _cfg["tasks_url"]
 
