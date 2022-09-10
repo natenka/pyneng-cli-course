@@ -155,7 +155,7 @@ def call_command(command, verbose=True, return_stdout=False, return_stderr=False
     return result.returncode
 
 
-def post_comment_to_last_commit(msg, repo, delta_days=60):
+def post_comment_to_last_commit(msg, repo, delta_days=60, ignore_ssl_cert=False):
     """
     Написать комментарий о сдаче заданий в последнем коммите.
     Комментарий пишется через Github API.
@@ -169,9 +169,9 @@ def post_comment_to_last_commit(msg, repo, delta_days=60):
     token = os.environ.get("GITHUB_TOKEN")
     since = datetime.now() - timedelta(days=delta_days)
     repo_name = f"pyneng/{repo}"
-
+    verify_ssl_cert = False if ignore_ssl_cert else True
     try:
-        g = github.Github(token)
+        g = github.Github(token, verify=verify_ssl_cert)
         repo_obj = g.get_repo(repo_name)
     except github.GithubException:
         raise PynengError(
@@ -204,7 +204,7 @@ def get_repo(search_pattern=STUDENT_REPO_TEMPLATE):
         )
 
 
-def send_tasks_to_check(passed_tasks, git_add_all=False):
+def send_tasks_to_check(passed_tasks, git_add_all=False, ignore_ssl_cert=False):
     """
     Функция отбирает все задания, которые прошли
     тесты при вызове pyneng, делает git add для файлов заданий,
@@ -239,7 +239,7 @@ def send_tasks_to_check(passed_tasks, git_add_all=False):
         call_command(f"git push origin {DEFAULT_BRANCH}")
 
     repo = get_repo()
-    last = post_comment_to_last_commit(message, repo)
+    last = post_comment_to_last_commit(message, repo, ignore_ssl_cert=ignore_ssl_cert)
     commit_number = re.search(r'"(\w+)"', str(last)).group(1)
     print(
         green(
@@ -421,6 +421,8 @@ def copy_answer_files(passed_tasks, pth):
     is_flag=True,
     help="Сохранить на GitHub все измененные файлы в текущем каталоге",
 )
+@click.option("--ignore-ssl-cert", default=False)
+@click.version_option(version="2.3.2")
 def cli(
     tasks,
     disable_verbose,
@@ -430,6 +432,7 @@ def cli(
     default_branch,
     test_token,
     save_all_to_github,
+    ignore_ssl_cert,
 ):
     """
     Запустить тесты для заданий TASKS. По умолчанию запустятся все тесты.
@@ -509,7 +512,9 @@ def cli(
             if not token:
                 raise PynengError(token_error)
             send_tasks_to_check(
-                passed_tasks + tasks_without_tests, git_add_all=save_all_to_github
+                passed_tasks + tasks_without_tests,
+                git_add_all=save_all_to_github,
+                ignore_ssl_cert=ignore_ssl_cert,
             )
 
     # если добавлен флаг --all, надо сохранить все изменения на github
