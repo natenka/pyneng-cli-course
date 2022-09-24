@@ -440,6 +440,7 @@ def update():
     help="Сохранить на GitHub все измененные файлы в текущем каталоге",
 )
 @click.option("--ignore-ssl-cert", default=False)
+@click.option("--diff-width", default=120, show_default=True, help="Test diff width")
 @click.version_option(version="2.3.3")
 def cli(
     tasks,
@@ -451,6 +452,7 @@ def cli(
     test_token,
     save_all_to_github,
     ignore_ssl_cert,
+    diff_width,
 ):
     """
     Запустить тесты для заданий TASKS. По умолчанию запустятся все тесты.
@@ -502,7 +504,7 @@ def cli(
     if disable_verbose:
         pytest_args = [*pytest_args_common, "--tb=short"]
     else:
-        pytest_args = [*pytest_args_common, "-vv", "--diff-width=120"]
+        pytest_args = [*pytest_args_common, "-vv", "--diff-width={diff_width}"]
 
     # если добавлен флаг -a или -c нет смысла выводить traceback,
     # так как скорее всего задания уже проверены предыдущими запусками.
