@@ -383,6 +383,24 @@ def copy_answer_files(passed_tasks, pth):
             shutil.copy2(task_name, f"{pth}/{answer_name}")
 
 
+@click.option("--tests")
+@click.option("--tasks")
+@click.option("--all")
+def update():
+    """subcommand vs option?"""
+    # warning if work dir not clean
+    # save current state - git add/commit/push
+    # check if dir exists
+    # clone task repo (home  dir?)
+    # hidden dir?
+    # git pull
+    # Warning about rewrite!!
+    # copy tasks/tests/all
+    # show git diff
+    # ask? save
+
+
+
 @click.command(
     context_settings=dict(
         ignore_unknown_options=True, help_option_names=["-h", "--help"]
@@ -422,7 +440,7 @@ def copy_answer_files(passed_tasks, pth):
     help="Сохранить на GitHub все измененные файлы в текущем каталоге",
 )
 @click.option("--ignore-ssl-cert", default=False)
-@click.version_option(version="2.3.2")
+@click.version_option(version="2.3.3")
 def cli(
     tasks,
     disable_verbose,
@@ -484,7 +502,7 @@ def cli(
     if disable_verbose:
         pytest_args = [*pytest_args_common, "--tb=short"]
     else:
-        pytest_args = [*pytest_args_common, "-vv"]
+        pytest_args = [*pytest_args_common, "-vv", "--diff-width=120"]
 
     # если добавлен флаг -a или -c нет смысла выводить traceback,
     # так как скорее всего задания уже проверены предыдущими запусками.

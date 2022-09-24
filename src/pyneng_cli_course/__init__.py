@@ -1,4 +1,4 @@
-__version__ = "2.3.2"
+__version__ = "2.3.3"
 
 ANSWERS_URL = "https://github.com/pyneng/pyneng-course-answers"
 # needed for tasks/tests updates
