@@ -142,7 +142,7 @@ class CustomTasksType(click.ParamType):
     help="Добавить git add .",
 )
 @click.option("--ignore-ssl-cert", default=False)
-@click.version_option(version="2.3.3")
+@click.version_option(version="3.0.0")
 @click.option(
     "--update", "update_tasks_tests", is_flag=True, help="Обновить задания и тесты"
 )
