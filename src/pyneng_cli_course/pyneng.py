@@ -52,6 +52,48 @@ def exception_handler(exception_type, exception, traceback):
     print(f"\n{exception_type.__name__}: {exception}\n")
 
 
+def _get_tasks_tests_from_cli(self, value, update=False):
+    regex = (
+        r"(?P<all>all)|"
+        r"(?P<number_star>\d\*)|"
+        r"(?P<letters_range>\d[a-i]-[a-i])|"
+        r"(?P<numbers_range>\d-\d)|"
+        r"(?P<single_task>\d[a-i]?)"
+    )
+    tasks_list = re.split(r"[ ,]+", value)
+    current_chapter = current_chapter_id()
+    test_files = []
+    task_files = []
+    for task in tasks_list:
+        match = re.fullmatch(regex, task)
+        if match:
+            if task == "all":
+                test_files = sorted(glob(f"test_task_{current_chapter}_*.py"))
+                task_files = sorted(glob(f"task_{current_chapter}_*.py"))
+                break
+            else:
+                if match.group("letters_range"):
+                    task = f"{task[0]}[{task[1:]}]"  # convert 1a-c to 1[a-c]
+                elif match.group("numbers_range"):
+                    task = f"[{task}]"  # convert 1-3 to [1-3]
+
+                test_files += glob(f"test_task_{current_chapter}_{task}.py")
+                task_files += glob(f"task_{current_chapter}_{task}.py")
+        else:
+            self.fail(
+                red(
+                    f"Данный формат не поддерживается {task}. "
+                    "Допустимые форматы: 1, 1a, 1b-d, 1*, 1-3"
+                )
+            )
+    tasks_with_tests = set([test.replace("test_", "") for test in test_files])
+    tasks_without_tests = set(task_files) - tasks_with_tests
+    if update:
+        return sorted(tasks_files), sorted(test_files)
+    else:
+        return sorted(test_files), sorted(tasks_without_tests)
+
+
 class CustomTasksType(click.ParamType):
     """
     Класс создает новый тип для click и преобразует
@@ -69,13 +111,6 @@ class CustomTasksType(click.ParamType):
         if isinstance(value, tuple):
             return value
 
-        regex = (
-            r"(?P<all>all)|"
-            r"(?P<number_star>\d\*)|"
-            r"(?P<letters_range>\d[a-i]-[a-i])|"
-            r"(?P<numbers_range>\d-\d)|"
-            r"(?P<single_task>\d[a-i]?)"
-        )
         current_chapter = current_dir_name()
         if current_chapter not in TASK_DIRS + DB_TASK_DIRS:
             task_dirs_line = "\n    ".join(
@@ -88,35 +123,29 @@ class CustomTasksType(click.ParamType):
                 )
             )
 
-        tasks_list = re.split(r"[ ,]+", value)
-        current_chapter = current_chapter_id()
-        test_files = []
-        task_files = []
-        for task in tasks_list:
-            match = re.fullmatch(regex, task)
-            if match:
-                if task == "all":
-                    test_files = sorted(glob(f"test_task_{current_chapter}_*.py"))
-                    task_files = glob(f"task_{current_chapter}_*.py")
-                    break
-                else:
-                    if match.group("letters_range"):
-                        task = f"{task[0]}[{task[1:]}]"  # convert 1a-c to 1[a-c]
-                    elif match.group("numbers_range"):
-                        task = f"[{task}]"  # convert 1-3 to [1-3]
+        return _get_tasks_tests_from_cli(self, value, update=False)
 
-                    test_files += glob(f"test_task_{current_chapter}_{task}.py")
-                    task_files += glob(f"task_{current_chapter}_{task}.py")
-            else:
-                self.fail(
-                    red(
-                        f"Данный формат не поддерживается {task}. "
-                        "Допустимые форматы: 1, 1a, 1b-d, 1*, 1-3"
-                    )
+
+class CustomTasksUpdate(click.ParamType):
+    name = "CustomTasksUpdate"
+
+    def convert(self, value, param, ctx):
+        if isinstance(value, tuple):
+            return value
+
+        current_chapter = current_dir_name()
+        if current_chapter not in TASK_DIRS + DB_TASK_DIRS:
+            task_dirs_line = "\n    ".join(
+                [d for d in TASK_DIRS if not d.startswith("task")]
+            )
+            self.fail(
+                red(
+                    f"\nСкрипт нужно вызывать из каталогов с заданиями:"
+                    f"\n    {task_dirs_line}"
                 )
-        tasks_with_tests = set([test.replace("test_", "") for test in test_files])
-        tasks_without_tests = set(task_files) - tasks_with_tests
-        return sorted(test_files), sorted(tasks_without_tests)
+            )
+
+        return _get_tasks_tests_from_cli(self, value, update=True)
 
 
 def git_push():
@@ -228,15 +257,7 @@ def send_tasks_to_check(passed_tasks, git_add_all=False, ignore_ssl_cert=False):
             call_command("git add templates")
         elif "25" in task:
             call_command("git add .")
-    if git_add_all:
-        call_command("git add .")
-    call_command(f'git commit -m "{message}"')
-    windows = True if system_name().lower() == "windows" else False
-
-    if windows:
-        git_push()
-    else:
-        call_command(f"git push origin {DEFAULT_BRANCH}")
+    git_add_commit_push(message, git_add_all=git_add_all)
 
     repo = get_repo()
     last = post_comment_to_last_commit(message, repo, ignore_ssl_cert=ignore_ssl_cert)
@@ -383,22 +404,90 @@ def copy_answer_files(passed_tasks, pth):
             shutil.copy2(task_name, f"{pth}/{answer_name}")
 
 
-@click.option("--tests")
-@click.option("--tasks")
-@click.option("--all")
-def update():
+@click.argument("tasks", default="all", type=CustomTasksUpdate())
+@click.option("--tests-only", is_flag=True, help="Обновить только тесты")
+def update(tasks, tests_only):
     """subcommand vs option?"""
-    # warning if work dir not clean
-    # save current state - git add/commit/push
-    # check if dir exists
-    # clone task repo (home  dir?)
-    # hidden dir?
-    # git pull
-    # Warning about rewrite!!
-    # copy tasks/tests/all
-    # show git diff
-    # ask? save
+    tasks_list, tests_list = tasks
+    git_status = call_command("git status --porcelain", return_stdout=True)
+    if git_status:
+        user_input = input(
+            red(
+                "В репозитории есть несохраненные изменения! "
+                "Хотите их сохранить? [y/n]: "
+            )
+        )
+        if user_input.strip().lower() not in ("n", "no"):
+            git_add_commit_push(green("Сохранение изменений перед обновлением заданий"))
+    copy_tasks_repo(...)
+    call_command("git diff --stat")
 
+    user_input = input(red("\nСохранить изменения и добавить на github?"))
+    if user_input.strip().lower() not in ("n", "no"):
+        # save current state - git add/commit/push
+        git_add_commit_push("Обновление заданий")
+
+
+def copy_tasks_repo():
+    """
+    Функция клонирует репозиторий с последней версией заданий и копирует указанные
+    задания в текущий каталог.
+    """
+    # check if dir exists
+    # clone task repo (home  dir?) hidden dir? git pull
+    pth = str(pathlib.Path().absolute())
+    current_chapter_name = os.path.split(pth)[-1]
+    current_chapter_number = int(current_chapter_name.split("_")[0])
+
+    homedir = pathlib.Path.home()
+    os.chdir(homedir)
+    if os.path.exists(".pyneng-course-tasks"):
+        pass
+        # git pull
+    returncode, stderr = call_command(
+        f"git clone {TASKS_URL} .pyneng-course-tasks",
+        verbose=False,
+        return_stderr=True,
+    )
+    if returncode == 0:
+        os.chdir(f".pyneng-course-tasks/exercises/{current_chapter_name}")
+        copy_task_test_files(pth, tasks)  # CHANGE
+        print(
+            green(
+                "\nОтветы на задания, которые прошли тесты "
+                "скопированы в файлы answer_task_x.py\n"
+            )
+        )
+        os.chdir(homedir)
+    else:
+        if "could not resolve host" in stderr.lower():
+            raise PynengError(
+                red(
+                    "Не получилось скопировать обновления. Возможно нет доступа в интернет?"
+                )
+            )
+        else:
+            raise PynengError(red(f"Не получилось скопировать обновления. {stderr}"))
+    os.chdir(pth)
+
+
+def copy_task_test_files(pth, tasks=None, tests=None):
+    """
+    Функция копирует ответы для указанных заданий.
+    """
+    for test_file in tasks:
+        shutil.copy2(task_name, f"{pth}/{answer_name}")
+
+
+def git_add_commit_push(message, git_add_all=True):
+    windows = True if system_name().lower() == "windows" else False
+    if git_add_all:
+        call_command("git add .")
+    call_command(f'git commit -m "{message}"')
+    if windows:
+        git_push()
+    else:
+        call_command(f"git push origin {DEFAULT_BRANCH}")
 
 
 @click.command(
@@ -440,7 +529,6 @@ def update():
     help="Сохранить на GitHub все измененные файлы в текущем каталоге",
 )
 @click.option("--ignore-ssl-cert", default=False)
-@click.option("--diff-width", default=120, show_default=True, help="Test diff width")
 @click.version_option(version="2.3.3")
 def cli(
     tasks,
@@ -452,7 +540,6 @@ def cli(
     test_token,
     save_all_to_github,
     ignore_ssl_cert,
-    diff_width,
 ):
     """
     Запустить тесты для заданий TASKS. По умолчанию запустятся все тесты.
@@ -483,6 +570,7 @@ def cli(
     Для сдачи заданий на проверку надо сгенерировать токен github.
     Подробнее в инструкции: https://pyneng.natenka.io/docs/pyneng-prepare/
     """
+    print(f"{tasks=}")
     global DEFAULT_BRANCH
     if default_branch != "main":
         DEFAULT_BRANCH = default_branch
@@ -504,7 +592,7 @@ def cli(
     if disable_verbose:
         pytest_args = [*pytest_args_common, "--tb=short"]
     else:
-        pytest_args = [*pytest_args_common, "-vv", "--diff-width={diff_width}"]
+        pytest_args = [*pytest_args_common, "-vv", "--diff-width=120"]
 
     # если добавлен флаг -a или -c нет смысла выводить traceback,
     # так как скорее всего задания уже проверены предыдущими запусками.
