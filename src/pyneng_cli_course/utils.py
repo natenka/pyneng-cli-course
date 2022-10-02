@@ -352,19 +352,31 @@ def copy_task_test_files(pth, tasks=None, tests=None):
 def update_tasks_and_tests(tasks_list, tests_list):
     print(f"{tasks_list=}")
     print(f"{tests_list=}")
+	# $ pyneng 1,2 --update-tasks
+	# tasks_list=['task_4_1.py', 'task_4_2.py']
+	# tests_list=['test_task_4_1.py', 'test_task_4_2.py']
+
     if not working_dir_clean():
         user_input = input(
             red(
-                "В репозитории есть несохраненные изменения! "
+                "В текущем каталоге есть несохраненные изменения! "
                 "Хотите их сохранить? [y/n]: "
             )
         )
         if user_input.strip().lower() not in ("n", "no"):
             save_changes_to_github("Сохранение изменений перед обновлением заданий")
+            print(green("Все изменения в текущем каталоге сохранены. Начинаем обновление..."))
     # copy_tasks_repo(...)
-    show_git_diff_stat()
+    import time
+    time.sleep(1)
+    if working_dir_clean():
+        print(green("Задания и тесты уже последней версии"))
+        return
+    else:
+        print(red("Были обновлены такие файлы:"))
+        show_git_diff_stat()
 
-    # user_input = input(red("\nСохранить изменения и добавить на github?"))
-    # if user_input.strip().lower() not in ("n", "no"):
-    #     # save current state - git add/commit/push
-    #     save_changes_to_github("Обновление заданий")
+        user_input = input(red("\nСохранить изменения и добавить на github?"))
+        if user_input.strip().lower() not in ("n", "no"):
+            # save current state - git add/commit/push
+            save_changes_to_github("Обновление заданий")

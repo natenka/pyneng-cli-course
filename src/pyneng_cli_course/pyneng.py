@@ -138,13 +138,20 @@ class CustomTasksType(click.ParamType):
 @click.option("--test-token", is_flag=True, help="Проверить работу токена")
 @click.option(
     "--all",
+    "git_add_all_to_github",
+    is_flag=True,
+    help="Добавить git add .",
+)
+@click.option("--ignore-ssl-cert", default=False)
+@click.version_option(version="2.3.3")
+@click.option("--update", "update_tasks_tests", is_flag=True, help="Обновить задания и тесты")
+@click.option("--test-only", "update_tests_only", is_flag=True, help="Обновить только тесты")
+@click.option(
+    "--save-all",
     "save_all_to_github",
     is_flag=True,
     help="Сохранить на GitHub все измененные файлы в текущем каталоге",
 )
-@click.option("--ignore-ssl-cert", default=False)
-@click.version_option(version="2.3.3")
-@click.option("--update-tasks", is_flag=True, help="Обновить задания и тесты")
 def cli(
     tasks,
     disable_verbose,
@@ -153,32 +160,39 @@ def cli(
     debug,
     default_branch,
     test_token,
-    save_all_to_github,
+    git_add_all_to_github,
     ignore_ssl_cert,
-    update_tasks,
+    update_tasks_tests,
+    update_tests_only,
+    save_all_to_github,
 ):
     """
     Запустить тесты для заданий TASKS. По умолчанию запустятся все тесты.
 
-    Примеры запуска:
+    \b
+    Эти флаги не запускают тестирование заданий
+      pyneng --test-token          Проверить работу токена
+      pyneng --save-all            Сохранить на GitHub все измененные файлы в текущем каталоге
+      pyneng --update              Обновить все задания и тесты в текущем каталоге
+      pyneng --update --test-only  Обновить только тесты в текущем каталоге
+      pyneng 1,2 --update          Обновить задания 1 и 2 и соответствующие тесты в текущем каталоге
 
     \b
-        pyneng --test-token проверить работу токена
+    Запуск тестирования заданий, просмотр ответов, сдача на проверку
+    \b
         pyneng              запустить все тесты для текущего раздела
         pyneng 1,2a,5       запустить тесты для заданий 1, 2a и 5
-        pyneng 1,2a-c,5     запустить тесты для заданий 1, 2a, 2b, 2c и 5
         pyneng 1,2*         запустить тесты для заданий 1, все задания 2 с буквами и без
         pyneng 1,3-5        запустить тесты для заданий 1, 3, 4, 5
         pyneng 1-5 -a       запустить тесты и записать ответы на задания,
                             которые прошли тесты, в файлы answer_task_x.py
         pyneng 1-5 -c       запустить тесты и сдать на проверку задания,
                             которые прошли тесты.
-        pyneng -a -c        запустить все тесты, записать ответы на задания
-                            и сдать на проверку задания, которые прошли тесты.
         pyneng 1-5 -c --all запустить тесты и сдать на проверку задания,
                             которые прошли тесты, но при этом загрузить на github все изменения
                             в текущем каталоге
 
+    \b
     Флаг -d отключает подробный вывод pytest, который включен по умолчанию.
     Флаг -a записывает ответы в файлы answer_task_x.py, если тесты проходят.
     Флаг -c сдает на проверку задания (пишет комментарий на github)
@@ -198,12 +212,21 @@ def cli(
         print(green("Проверка токена прошла успешно"))
         raise click.Abort()
 
+    if save_all_to_github:
+        save_changes_to_github()
+        print(green("Все изменения в текущем каталоге сохранены на GitHub"))
+        raise click.Abort()
+
     # после обработки CustomTasksType, получаем три списка файлов
     test_files, tasks_without_tests, task_files = tasks
 
-    if update_tasks:
+    if update_tasks_tests and update_tests_only:
+        update_tasks_and_tests(tasks_list=None, tests_list=test_files)
+        print(green("Тесты успешно обновлены"))
+        raise click.Abort()
+    elif update_tasks_tests:
         update_tasks_and_tests(task_files, test_files)
-        print(green("Задания успешно обновлены"))
+        print(green("Задания и тесты успешно обновлены"))
         raise click.Abort()
 
     if not debug:
@@ -241,12 +264,12 @@ def cli(
                 raise PynengError(token_error)
             send_tasks_to_check(
                 passed_tasks + tasks_without_tests,
-                git_add_all=save_all_to_github,
+                git_add_all=git_add_all_to_github,
                 ignore_ssl_cert=ignore_ssl_cert,
             )
 
     # если добавлен флаг --all, надо сохранить все изменения на github
-    if save_all_to_github:
+    if git_add_all_to_github:
         save_changes_to_github()
 
 
