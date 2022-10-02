@@ -347,3 +347,24 @@ def copy_task_test_files(pth, tasks=None, tests=None):
     """
     for test_file in tasks:
         shutil.copy2(task_name, f"{pth}/{answer_name}")
+
+
+def update_tasks_and_tests(tasks_list, tests_list):
+    print(f"{tasks_list=}")
+    print(f"{tests_list=}")
+    if not working_dir_clean():
+        user_input = input(
+            red(
+                "В репозитории есть несохраненные изменения! "
+                "Хотите их сохранить? [y/n]: "
+            )
+        )
+        if user_input.strip().lower() not in ("n", "no"):
+            save_changes_to_github("Сохранение изменений перед обновлением заданий")
+    # copy_tasks_repo(...)
+    show_git_diff_stat()
+
+    # user_input = input(red("\nСохранить изменения и добавить на github?"))
+    # if user_input.strip().lower() not in ("n", "no"):
+    #     # save current state - git add/commit/push
+    #     save_changes_to_github("Обновление заданий")

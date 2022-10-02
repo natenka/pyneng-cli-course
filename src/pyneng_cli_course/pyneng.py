@@ -17,8 +17,6 @@ from pyneng_cli_course.exceptions import PynengError
 from pyneng_cli_course.utils import (
     red,
     green,
-    working_dir_clean,
-    show_git_diff_stat,
     save_changes_to_github,
     test_run_for_github_token,
     send_tasks_to_check,
@@ -26,7 +24,7 @@ from pyneng_cli_course.utils import (
     current_dir_name,
     parse_json_report,
     copy_answers,
-    copy_tasks_repo,
+    update_tasks_and_tests,
 )
 
 
@@ -37,7 +35,7 @@ def exception_handler(exception_type, exception, traceback):
     print(f"\n{exception_type.__name__}: {exception}\n")
 
 
-def _get_tasks_tests_from_cli(self, value, update=False):
+def _get_tasks_tests_from_cli(self, value):
     regex = (
         r"(?P<all>all)|"
         r"(?P<number_star>\d\*)|"
@@ -73,10 +71,7 @@ def _get_tasks_tests_from_cli(self, value, update=False):
             )
     tasks_with_tests = set([test.replace("test_", "") for test in test_files])
     tasks_without_tests = set(task_files) - tasks_with_tests
-    if update:
-        return sorted(tasks_files), sorted(test_files)
-    else:
-        return sorted(test_files), sorted(tasks_without_tests)
+    return sorted(test_files), sorted(tasks_without_tests), sorted(task_files)
 
 
 class CustomTasksType(click.ParamType):
@@ -106,32 +101,10 @@ class CustomTasksType(click.ParamType):
                 )
             )
 
-        return _get_tasks_tests_from_cli(self, value, update=False)
+        return _get_tasks_tests_from_cli(self, value)
 
 
-class CustomTasksUpdate(click.ParamType):
-    name = "CustomTasksUpdate"
-
-    def convert(self, value, param, ctx):
-        if isinstance(value, tuple):
-            return value
-
-        current_chapter = current_dir_name()
-        if current_chapter not in TASK_DIRS + DB_TASK_DIRS:
-            task_dirs_line = "\n    ".join(
-                [d for d in TASK_DIRS if not d.startswith("task")]
-            )
-            self.fail(
-                red(
-                    f"\nСкрипт нужно вызывать из каталогов с заданиями:"
-                    f"\n    {task_dirs_line}"
-                )
-            )
-
-        return _get_tasks_tests_from_cli(self, value, update=True)
-
-
-@click.group(
+@click.command(
     context_settings=dict(
         ignore_unknown_options=True, help_option_names=["-h", "--help"]
     )
@@ -171,6 +144,7 @@ class CustomTasksUpdate(click.ParamType):
 )
 @click.option("--ignore-ssl-cert", default=False)
 @click.version_option(version="2.3.3")
+@click.option("--update-tasks", is_flag=True, help="Обновить задания и тесты")
 def cli(
     tasks,
     disable_verbose,
@@ -181,6 +155,7 @@ def cli(
     test_token,
     save_all_to_github,
     ignore_ssl_cert,
+    update_tasks,
 ):
     """
     Запустить тесты для заданий TASKS. По умолчанию запустятся все тесты.
@@ -211,7 +186,6 @@ def cli(
     Для сдачи заданий на проверку надо сгенерировать токен github.
     Подробнее в инструкции: https://pyneng.natenka.io/docs/pyneng-prepare/
     """
-    print(f"{tasks=}")
     global DEFAULT_BRANCH
     if default_branch != "main":
         DEFAULT_BRANCH = default_branch
@@ -222,6 +196,14 @@ def cli(
     if test_token:
         test_run_for_github_token()
         print(green("Проверка токена прошла успешно"))
+        raise click.Abort()
+
+    # после обработки CustomTasksType, получаем три списка файлов
+    test_files, tasks_without_tests, task_files = tasks
+
+    if update_tasks:
+        update_tasks_and_tests(task_files, test_files)
+        print(green("Задания успешно обновлены"))
         raise click.Abort()
 
     if not debug:
@@ -239,9 +221,6 @@ def cli(
     # так как скорее всего задания уже проверены предыдущими запусками.
     if answer or check:
         pytest_args = [*pytest_args_common, "--tb=no"]
-
-    # после обработки CustomTasksType, получаем два списка файлов
-    test_files, tasks_without_tests = tasks
 
     # запуск pytest
     pytest.main(test_files + pytest_args, plugins=[json_plugin])
@@ -269,34 +248,6 @@ def cli(
     # если добавлен флаг --all, надо сохранить все изменения на github
     if save_all_to_github:
         save_changes_to_github()
-
-
-@cli.command()
-@click.argument("tasks", default="all", type=CustomTasksUpdate())
-@click.option("--tests-only", is_flag=True, help="Обновить только тесты")
-def update(tasks, tests_only):
-    """subcommand vs option?"""
-    tasks_list, tests_list = tasks
-    print(f"{tasks=}")
-    print(f"{tasks_list=}")
-    print(f"{tests_list=}")
-    print(f"{tests_only=}")
-    # if not working_dir_clean():
-    #     user_input = input(
-    #         red(
-    #             "В репозитории есть несохраненные изменения! "
-    #             "Хотите их сохранить? [y/n]: "
-    #         )
-    #     )
-    #     if user_input.strip().lower() not in ("n", "no"):
-    #         save_changes_to_github("Сохранение изменений перед обновлением заданий")
-    # copy_tasks_repo(...)
-    # show_git_diff_stat()
-
-    # user_input = input(red("\nСохранить изменения и добавить на github?"))
-    # if user_input.strip().lower() not in ("n", "no"):
-    #     # save current state - git add/commit/push
-    #     save_changes_to_github("Обновление заданий")
 
 
 if __name__ == "__main__":
