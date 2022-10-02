@@ -9,7 +9,7 @@ import pytest
 from pytest_jsonreport.plugin import JSONReport
 
 from pyneng_cli_course import (
-    DEFAULT_BRANCH,  # непонятно работает ли оно в связке с utils
+    DEFAULT_BRANCH,
     TASK_DIRS,
     DB_TASK_DIRS,
 )
@@ -118,9 +118,8 @@ class CustomTasksType(click.ParamType):
     "-a",
     is_flag=True,
     help=(
-        "Скопировать ответы для заданий, которые "
-        "прошли тесты. При добавлении этого флага, "
-        "не выводится traceback для тестов."
+        "Скопировать ответы для заданий, которые прошли тесты. При добавлении этого "
+        "флага, не выводится traceback для тестов."
     ),
 )
 @click.option(
@@ -217,20 +216,23 @@ def cli(
         raise click.Abort()
 
     if save_all_to_github:
-        save_changes_to_github()
+        save_changes_to_github(branch=DEFAULT_BRANCH)
         print(green("Все изменения в текущем каталоге сохранены на GitHub"))
         raise click.Abort()
 
     # после обработки CustomTasksType, получаем три списка файлов
     test_files, tasks_without_tests, task_files = tasks
 
-    if update_tasks_tests and update_tests_only:
-        update_tasks_and_tests(tasks_list=None, tests_list=test_files)
-        print(green("Тесты успешно обновлены"))
-        raise click.Abort()
-    elif update_tasks_tests:
-        update_tasks_and_tests(task_files, test_files)
-        print(green("Задания и тесты успешно обновлены"))
+    if update_tasks_tests:
+        if update_tests_only:
+            tasks_files = None
+            msg = green("Тесты успешно обновлены")
+        else:
+            msg = green("Задания и тесты успешно обновлены")
+
+        upd = update_tasks_and_tests(task_files, test_files)
+        if upd:
+            print(msg)
         raise click.Abort()
 
     if not debug:
@@ -274,7 +276,7 @@ def cli(
 
     # если добавлен флаг --all, надо сохранить все изменения на github
     if git_add_all_to_github:
-        save_changes_to_github()
+        save_changes_to_github(branch=DEFAULT_BRANCH)
 
 
 if __name__ == "__main__":

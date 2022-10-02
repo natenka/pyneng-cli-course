@@ -16,7 +16,6 @@ from pyneng_cli_course.exceptions import PynengError
 from pyneng_cli_course import (
     ANSWERS_URL,
     TASKS_URL,
-    DEFAULT_BRANCH,
     TASK_DIRS,
     DB_TASK_DIRS,
     STUDENT_REPO_TEMPLATE,
@@ -79,16 +78,16 @@ def show_git_diff_short():
     git_diff = call_command("git diff --stat")
 
 
-def git_push():
+def git_push(branch):
     """
     Функция вызывает git push для Windows
     """
-    command = f"git push origin {DEFAULT_BRANCH}"
+    command = f"git push origin {branch}"
     print("#" * 20, command)
     result = subprocess.run(command, shell=True)
 
 
-def save_changes_to_github(message="Все изменения сохранены", git_add_all=True):
+def save_changes_to_github(message="Все изменения сохранены", git_add_all=True, branch="main"):
     status = call_command("git status -s", return_stdout=True)
     if not status:
         return
@@ -98,9 +97,9 @@ def save_changes_to_github(message="Все изменения сохранены
     windows = True if system_name().lower() == "windows" else False
 
     if windows:
-        git_push()
+        git_push(branch)
     else:
-        call_command(f"git push origin {DEFAULT_BRANCH}")
+        call_command(f"git push origin {branch}")
 
 
 def get_repo(search_pattern=STUDENT_REPO_TEMPLATE):
@@ -337,9 +336,6 @@ def copy_task_test_files(source_pth, tasks=None, tests=None):
 
 
 def update_tasks_and_tests(tasks_list, tests_list):
-    print(f"{tasks_list=}")
-    print(f"{tests_list=}")
-
     if not working_dir_clean():
         print(
             red(
@@ -362,7 +358,7 @@ def update_tasks_and_tests(tasks_list, tests_list):
     copy_tasks_tests_from_repo(tasks_list, tests_list)
     if working_dir_clean():
         print(green("Задания и тесты уже последней версии"))
-        return
+        return False
     else:
         print(red("Были обновлены такие файлы:"))
         show_git_diff_short()
@@ -376,3 +372,4 @@ def update_tasks_and_tests(tasks_list, tests_list):
         user_input = input(red("\nСохранить изменения и добавить на github? [y/n]: "))
         if user_input.strip().lower() not in ("n", "no"):
             save_changes_to_github("Обновление заданий")
+        return True
