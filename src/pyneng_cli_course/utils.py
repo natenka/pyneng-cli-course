@@ -240,6 +240,23 @@ def parse_json_report(report):
         return []
 
 
+def git_clone_repo(repo_url, dst_dir):
+    returncode, stderr = call_command(
+        f"git clone {repo_url} (dst_dir)",
+        verbose=False,
+        return_stderr=True,
+    )
+    if returncode != 0:
+        if "could not resolve host" in stderr.lower():
+            raise PynengError(
+                red(
+                    "Не получилось клонировать репозиторий. Возможно нет доступа в интернет?"
+                )
+            )
+        else:
+            raise PynengError(red(f"Не получилось скопировать файлы. {stderr}"))
+
+
 def copy_answers(passed_tasks):
     """
     Функция клонирует репозиторий с ответами и копирует ответы для заданий,
@@ -253,31 +270,17 @@ def copy_answers(passed_tasks):
     os.chdir(homedir)
     if os.path.exists("pyneng-answers"):
         shutil.rmtree("pyneng-answers", onerror=remove_readonly)
-    returncode, stderr = call_command(
-        f"git clone {ANSWERS_URL} pyneng-answers",
-        verbose=False,
-        return_stderr=True,
-    )
-    if returncode == 0:
-        os.chdir(f"pyneng-answers/answers/{current_chapter_name}")
-        copy_answer_files(passed_tasks, pth)
-        print(
-            green(
-                "\nОтветы на задания, которые прошли тесты "
-                "скопированы в файлы answer_task_x.py\n"
-            )
+    git_clone_repo(ANSWERS_URL, "pyneng-answers")
+    os.chdir(os.path.join("pyneng-answers", "answers", current_chapter_name))
+    copy_answer_files(passed_tasks, pth)
+    print(
+        green(
+            "\nОтветы на задания, которые прошли тесты "
+            "скопированы в файлы answer_task_x.py\n"
         )
-        os.chdir(homedir)
-        shutil.rmtree("pyneng-answers", onerror=remove_readonly)
-    else:
-        if "could not resolve host" in stderr.lower():
-            raise PynengError(
-                red(
-                    "Не получилось скопировать ответы. Возможно нет доступа в интернет?"
-                )
-            )
-        else:
-            raise PynengError(red(f"Не получилось скопировать ответы. {stderr}"))
+    )
+    os.chdir(homedir)
+    shutil.rmtree("pyneng-answers", onerror=remove_readonly)
     os.chdir(pth)
 
 
@@ -290,71 +293,56 @@ def copy_answer_files(passed_tasks, pth):
         task_name = re.search(r"task_\w+\.py", task_name).group()
         answer_name = test_file.replace("test_", "answer_")
         answer_name = re.search(r"answer_task_\w+\.py", answer_name).group()
-        if not os.path.exists(f"{pth}/{answer_name}"):
-            # call_command(
-            #    f"cp {task_name} {pth}/{answer_name}",
-            #    verbose=False,
-            # )
-            shutil.copy2(task_name, f"{pth}/{answer_name}")
+        pth_answer = os.path.join(pth, answer_name)
+        if not os.path.exists(pth_answer):
+            shutil.copy2(task_name, pth_answer)
 
 
-def copy_tasks_repo():
+def copy_tasks_tests_from_repo(tasks, tests):
     """
     Функция клонирует репозиторий с последней версией заданий и копирует указанные
     задания в текущий каталог.
     """
-    # check if dir exists
-    # clone task repo (home  dir?) hidden dir? git pull
-    pth = str(pathlib.Path().absolute())
-    current_chapter_name = os.path.split(pth)[-1]
+    course_tasks_repo_dir = ".pyneng-course-tasks"
+    source_pth = str(pathlib.Path().absolute())
+    current_chapter_name = os.path.split(source_pth)[-1]
     current_chapter_number = int(current_chapter_name.split("_")[0])
 
     homedir = pathlib.Path.home()
     os.chdir(homedir)
-    if os.path.exists(".pyneng-course-tasks"):
-        pass
-        # git pull
-    returncode, stderr = call_command(
-        f"git clone {TASKS_URL} .pyneng-course-tasks",
-        verbose=False,
-        return_stderr=True,
-    )
-    if returncode == 0:
-        os.chdir(f".pyneng-course-tasks/exercises/{current_chapter_name}")
-        copy_task_test_files(pth, tasks)  # CHANGE
-        print(
-            green(
-                "\nОтветы на задания, которые прошли тесты "
-                "скопированы в файлы answer_task_x.py\n"
-            )
-        )
+    if os.path.exists(course_tasks_repo_dir):
+        os.chdir(course_tasks_repo_dir)
+        call_command("git pull")
         os.chdir(homedir)
     else:
-        if "could not resolve host" in stderr.lower():
-            raise PynengError(
-                red(
-                    "Не получилось скопировать обновления. Возможно нет доступа в интернет?"
-                )
-            )
-        else:
-            raise PynengError(red(f"Не получилось скопировать обновления. {stderr}"))
-    os.chdir(pth)
+        git_clone_repo(TASKS_URL, course_tasks_repo_dir)
+    os.chdir(os.path.join(course_tasks_repo_dir, "exercises", current_chapter_name))
+    copy_task_test_files(source_pth, tasks, tests)
+    print(
+        green(
+            "\nОтветы на задания, которые прошли тесты "
+            "скопированы в файлы answer_task_x.py\n"
+        )
+    )
+    os.chdir(source_pth)
 
 
-def copy_task_test_files(pth, tasks=None, tests=None):
+def copy_task_test_files(source_pth, tasks=None, tests=None):
     """
-    Функция копирует ответы для указанных заданий.
+    Функция копирует файлы заданий и тестов.
     """
-    for test_file in tasks:
-        shutil.copy2(task_name, f"{pth}/{answer_name}")
+    file_list = []
+    if tasks:
+        file_list += tasks
+    if tests:
+        file_list += tests
+    for file in file_list:
+        shutil.copy2(file, os.path.join(source_pth, file))
 
 
 def update_tasks_and_tests(tasks_list, tests_list):
     print(f"{tasks_list=}")
     print(f"{tests_list=}")
-	# $ pyneng 1,2 --update-tasks
-	# tasks_list=['task_4_1.py', 'task_4_2.py']
-	# tests_list=['test_task_4_1.py', 'test_task_4_2.py']
 
     if not working_dir_clean():
         user_input = input(
@@ -365,10 +353,12 @@ def update_tasks_and_tests(tasks_list, tests_list):
         )
         if user_input.strip().lower() not in ("n", "no"):
             save_changes_to_github("Сохранение изменений перед обновлением заданий")
-            print(green("Все изменения в текущем каталоге сохранены. Начинаем обновление..."))
-    # copy_tasks_repo(...)
-    import time
-    time.sleep(1)
+            print(
+                green(
+                    "Все изменения в текущем каталоге сохранены. Начинаем обновление..."
+                )
+            )
+    copy_tasks_tests_from_repo(tasks_list, tests_list)
     if working_dir_clean():
         print(green("Задания и тесты уже последней версии"))
         return
@@ -378,5 +368,4 @@ def update_tasks_and_tests(tasks_list, tests_list):
 
         user_input = input(red("\nСохранить изменения и добавить на github?"))
         if user_input.strip().lower() not in ("n", "no"):
-            # save current state - git add/commit/push
             save_changes_to_github("Обновление заданий")

@@ -144,8 +144,12 @@ class CustomTasksType(click.ParamType):
 )
 @click.option("--ignore-ssl-cert", default=False)
 @click.version_option(version="2.3.3")
-@click.option("--update", "update_tasks_tests", is_flag=True, help="Обновить задания и тесты")
-@click.option("--test-only", "update_tests_only", is_flag=True, help="Обновить только тесты")
+@click.option(
+    "--update", "update_tasks_tests", is_flag=True, help="Обновить задания и тесты"
+)
+@click.option(
+    "--test-only", "update_tests_only", is_flag=True, help="Обновить только тесты"
+)
 @click.option(
     "--save-all",
     "save_all_to_github",
