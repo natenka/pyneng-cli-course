@@ -12,6 +12,7 @@ from datetime import datetime, timedelta
 import click
 import github
 
+from pyneng_cli_course.exceptions import PynengError
 from pyneng_cli_course import (
     ANSWERS_URL,
     TASKS_URL,
@@ -74,7 +75,7 @@ def working_dir_clean():
         return True
 
 
-def show_git_diff_stat():
+def show_git_diff_short():
     git_diff = call_command("git diff --stat")
 
 
@@ -242,7 +243,7 @@ def parse_json_report(report):
 
 def git_clone_repo(repo_url, dst_dir):
     returncode, stderr = call_command(
-        f"git clone {repo_url} (dst_dir)",
+        f"git clone {repo_url} {dst_dir}",
         verbose=False,
         return_stderr=True,
     )
@@ -318,12 +319,7 @@ def copy_tasks_tests_from_repo(tasks, tests):
         git_clone_repo(TASKS_URL, course_tasks_repo_dir)
     os.chdir(os.path.join(course_tasks_repo_dir, "exercises", current_chapter_name))
     copy_task_test_files(source_pth, tasks, tests)
-    print(
-        green(
-            "\nОтветы на задания, которые прошли тесты "
-            "скопированы в файлы answer_task_x.py\n"
-        )
-    )
+    print(green("\nОбновленные задания и тесты скопированы"))
     os.chdir(source_pth)
 
 
@@ -345,6 +341,11 @@ def update_tasks_and_tests(tasks_list, tests_list):
     print(f"{tests_list=}")
 
     if not working_dir_clean():
+        print(
+            red(
+                "Обновление тестов и задание перезапишет содержимое несохраненных файлов!".upper()
+            )
+        )
         user_input = input(
             red(
                 "В текущем каталоге есть несохраненные изменения! "
@@ -364,8 +365,14 @@ def update_tasks_and_tests(tasks_list, tests_list):
         return
     else:
         print(red("Были обновлены такие файлы:"))
-        show_git_diff_stat()
+        show_git_diff_short()
+        print(
+            "\nЭто короткий diff, если вы хотите посмотреть все отличия подробно, "
+            "нажмите n и дайте команду git diff.\n"
+            "Также при желании можно отменить внесенные изменения git checkout -- file "
+            "(или git restore file)."
+        )
 
-        user_input = input(red("\nСохранить изменения и добавить на github?"))
+        user_input = input(red("\nСохранить изменения и добавить на github? [y/n]: "))
         if user_input.strip().lower() not in ("n", "no"):
             save_changes_to_github("Обновление заданий")
