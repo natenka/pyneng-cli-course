@@ -37,18 +37,13 @@ def exception_handler(exception_type, exception, traceback):
     print(f"\n{exception_type.__name__}: {exception}\n")
 
 
-def check_current_dir_name(dir_list):
+def check_current_dir_name(dir_list, message):
     current_chapter = current_dir_name()
     if current_chapter not in dir_list:
         task_dirs_line = "\n    ".join(
-            [d for d in TASK_DIRS if not d.startswith("task")]
+            [d for d in dir_list if not d.startswith("task")]
         )
-        print(
-            red(
-                f"\nСкрипт нужно вызывать из каталогов с заданиями:"
-                f"\n    {task_dirs_line}"
-            )
-        )
+        print(red(f"\n{message}:" f"\n    {task_dirs_line}"))
         raise click.Abort()
 
 
@@ -199,7 +194,9 @@ class CustomChapterType(click.ParamType):
     help="Сохранить на GitHub все измененные файлы в текущем каталоге",
 )
 @click.option(
-    "--update-chapters", type=CustomChapterType(), help="Обновить все задания и тесты в указанных разделах"
+    "--update-chapters",
+    type=CustomChapterType(),
+    help="Обновить все задания и тесты в указанных разделах",
 )
 def cli(
     tasks,
@@ -268,13 +265,17 @@ def cli(
         raise click.Abort()
 
     if update_chapters:
-        check_current_dir_name(["exercises"])
+        check_current_dir_name(
+            ["exercises"], "Обновление разделов надо выполнять из каталога"
+        )
         update_chapters_tasks_and_tests(update_chapters)
         raise click.Abort()
 
     # дальнейшее есть смысл выполнять только если мы находимся в каталоге
     # конкретного раздела с заданиями
-    check_current_dir_name(TASK_DIRS + DB_TASK_DIRS)
+    check_current_dir_name(
+        TASK_DIRS + DB_TASK_DIRS, "Проверку заданий можно выполнять только из каталогов"
+    )
 
     # после обработки CustomTasksType, получаем три списка файлов
     test_files, tasks_without_tests, task_files = tasks
