@@ -397,7 +397,6 @@ def update_tasks_and_tests(tasks_list, tests_list):
 
 
 def update_chapters_tasks_and_tests(update_chapters):
-    print(update_chapters)
     save_working_dir()
     copy_chapters_from_repo(update_chapters)
     if working_dir_clean():
@@ -426,7 +425,7 @@ def copy_chapters_from_repo(chapters_list):
 
 def copy_chapters(source_pth, chapters_list):
     """
-    Функция копирует файлы заданий и тестов.
+    Функция копирует разделы
     """
     for chapter in chapters_list:
         to_path = os.path.join(source_pth, chapter)
