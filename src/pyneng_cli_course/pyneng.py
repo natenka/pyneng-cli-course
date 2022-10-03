@@ -12,6 +12,7 @@ from pyneng_cli_course import (
     DEFAULT_BRANCH,
     TASK_DIRS,
     DB_TASK_DIRS,
+    TASK_NUMBER_DIR_MAP,
 )
 from pyneng_cli_course.exceptions import PynengError
 from pyneng_cli_course.utils import (
@@ -25,6 +26,7 @@ from pyneng_cli_course.utils import (
     parse_json_report,
     copy_answers,
     update_tasks_and_tests,
+    update_chapters_tasks_and_tests,
 )
 
 
@@ -33,6 +35,21 @@ def exception_handler(exception_type, exception, traceback):
     sys.excepthook для отключения traceback по умолчанию
     """
     print(f"\n{exception_type.__name__}: {exception}\n")
+
+
+def check_current_dir_name(dir_list):
+    current_chapter = current_dir_name()
+    if current_chapter not in dir_list:
+        task_dirs_line = "\n    ".join(
+            [d for d in TASK_DIRS if not d.startswith("task")]
+        )
+        print(
+            red(
+                f"\nСкрипт нужно вызывать из каталогов с заданиями:"
+                f"\n    {task_dirs_line}"
+            )
+        )
+        raise click.Abort()
 
 
 def _get_tasks_tests_from_cli(self, value):
@@ -66,7 +83,7 @@ def _get_tasks_tests_from_cli(self, value):
             self.fail(
                 red(
                     f"Данный формат не поддерживается {task}. "
-                    "Допустимые форматы: 1, 1a, 1b-d, 1*, 1-3"
+                    "Допустимые форматы в pyneng --help"
                 )
             )
     tasks_with_tests = set([test.replace("test_", "") for test in test_files])
@@ -88,20 +105,46 @@ class CustomTasksType(click.ParamType):
     def convert(self, value, param, ctx):
         if isinstance(value, tuple):
             return value
-
-        current_chapter = current_dir_name()
-        if current_chapter not in TASK_DIRS + DB_TASK_DIRS:
-            task_dirs_line = "\n    ".join(
-                [d for d in TASK_DIRS if not d.startswith("task")]
-            )
-            self.fail(
-                red(
-                    f"\nСкрипт нужно вызывать из каталогов с заданиями:"
-                    f"\n    {task_dirs_line}"
-                )
-            )
+        elif value == "all" and current_dir_name() == "exercises":
+            return value
+        elif current_dir_name() not in TASK_DIRS:
+            return value
 
         return _get_tasks_tests_from_cli(self, value)
+
+
+class CustomChapterType(click.ParamType):
+    name = "CustomChapterType"
+
+    def convert(self, value, param, ctx):
+        if isinstance(value, tuple):
+            return value
+        regex = r"(?P<numbers_range>\d+-\d+)|" r"(?P<number>\d+)"
+        TASK_NUMBER_DIR_MAP
+        chapter_dir_list = []
+        chapter_list = re.split(r"[ ,]+", value)
+        for chapter in chapter_list:
+            match = re.fullmatch(regex, chapter)
+            if match:
+                if match.group("number"):
+                    chapter = int(match.group("number"))
+                    chapter_dir = TASK_NUMBER_DIR_MAP.get(chapter)
+                    if chapter_dir:
+                        chapter_dir_list.append(chapter_dir)
+                elif match.group("numbers_range"):
+                    start, stop = match.group("numbers_range").split("-")
+                    for chapter_id in range(int(start), int(stop) + 1):
+                        chapter_dir = TASK_NUMBER_DIR_MAP.get(chapter_id)
+                        if chapter_dir:
+                            chapter_dir_list.append(chapter_dir)
+            else:
+                self.fail(
+                    red(
+                        f"Данный формат не поддерживается {chapter}. "
+                        "Допустимые форматы в pyneng --help"
+                    )
+                )
+        return sorted(chapter_dir_list)
 
 
 @click.command(
@@ -155,6 +198,9 @@ class CustomTasksType(click.ParamType):
     is_flag=True,
     help="Сохранить на GitHub все измененные файлы в текущем каталоге",
 )
+@click.option(
+    "--update-chapters", type=CustomChapterType(), help="Обновить все задания и тесты в указанных разделах"
+)
 def cli(
     tasks,
     disable_verbose,
@@ -168,6 +214,7 @@ def cli(
     update_tasks_tests,
     update_tests_only,
     save_all_to_github,
+    update_chapters,
 ):
     """
     Запустить тесты для заданий TASKS. По умолчанию запустятся все тесты.
@@ -219,6 +266,15 @@ def cli(
         save_changes_to_github(branch=DEFAULT_BRANCH)
         print(green("Все изменения в текущем каталоге сохранены на GitHub"))
         raise click.Abort()
+
+    if update_chapters:
+        check_current_dir_name(["exercises"])
+        update_chapters_tasks_and_tests(update_chapters)
+        raise click.Abort()
+
+    # дальнейшее есть смысл выполнять только если мы находимся в каталоге
+    # конкретного раздела с заданиями
+    check_current_dir_name(TASK_DIRS + DB_TASK_DIRS)
 
     # после обработки CustomTasksType, получаем три списка файлов
     test_files, tasks_without_tests, task_files = tasks

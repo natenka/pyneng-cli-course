@@ -373,3 +373,7 @@ def update_tasks_and_tests(tasks_list, tests_list):
         if user_input.strip().lower() not in ("n", "no"):
             save_changes_to_github("Обновление заданий")
         return True
+
+
+def update_chapters_tasks_and_tests(update_chapters):
+    print(update_chapters)
