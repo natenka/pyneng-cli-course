@@ -169,7 +169,7 @@ def post_comment_to_last_commit(msg, repo, delta_days=60, ignore_ssl_cert=False)
             return last
 
 
-def send_tasks_to_check(passed_tasks, git_add_all=False, ignore_ssl_cert=False):
+def send_tasks_to_check(passed_tasks, git_add_all=False, ignore_ssl_cert=False, branch="main"):
     """
     Функция отбирает все задания, которые прошли
     тесты при вызове pyneng, делает git add для файлов заданий,
@@ -193,7 +193,7 @@ def send_tasks_to_check(passed_tasks, git_add_all=False, ignore_ssl_cert=False):
             call_command("git add templates")
         elif "25" in task:
             call_command("git add .")
-    save_changes_to_github(message, git_add_all=git_add_all)
+    save_changes_to_github(message, git_add_all=git_add_all, branch=branch)
 
     repo = get_repo()
     last = post_comment_to_last_commit(message, repo, ignore_ssl_cert=ignore_ssl_cert)
@@ -348,7 +348,7 @@ def copy_task_test_files(source_pth, tasks=None, tests=None):
         shutil.copy2(file, os.path.join(source_pth, file))
 
 
-def save_working_dir():
+def save_working_dir(branch="main"):
     if not working_dir_clean():
         print(
             red(
@@ -362,7 +362,7 @@ def save_working_dir():
             )
         )
         if user_input.strip().lower() not in ("n", "no"):
-            save_changes_to_github("Сохранение изменений перед обновлением заданий")
+            save_changes_to_github("Сохранение изменений перед обновлением заданий", branch=branch)
             print(
                 green(
                     "Все изменения в текущем каталоге сохранены. Начинаем обновление..."
@@ -370,7 +370,7 @@ def save_working_dir():
             )
 
 
-def working_dir_changed_diff():
+def working_dir_changed_diff(branch="main"):
     print(red("Были обновлены такие файлы:"))
     show_git_diff_short()
     print(
@@ -382,28 +382,28 @@ def working_dir_changed_diff():
 
     user_input = input(red("\nСохранить изменения и добавить на github? [y/n]: "))
     if user_input.strip().lower() not in ("n", "no"):
-        save_changes_to_github("Обновление заданий")
+        save_changes_to_github("Обновление заданий", branch=branch)
 
 
-def update_tasks_and_tests(tasks_list, tests_list):
-    save_working_dir()
+def update_tasks_and_tests(tasks_list, tests_list, branch="main"):
+    save_working_dir(branch=branch)
     copy_tasks_tests_from_repo(tasks_list, tests_list)
     if working_dir_clean():
         print(green("Задания и тесты уже последней версии"))
         return False
     else:
-        working_dir_changed_diff()
+        working_dir_changed_diff(branch=branch)
         return True
 
 
-def update_chapters_tasks_and_tests(update_chapters):
-    save_working_dir()
+def update_chapters_tasks_and_tests(update_chapters, branch="main"):
+    save_working_dir(branch=branch)
     copy_chapters_from_repo(update_chapters)
     if working_dir_clean():
         print(green("Все разделы уже последней версии"))
         return False
     else:
-        working_dir_changed_diff()
+        working_dir_changed_diff(branch=branch)
         return True
 
 

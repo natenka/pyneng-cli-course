@@ -281,7 +281,7 @@ def cli(
         check_current_dir_name(
             ["exercises"], "Обновление разделов надо выполнять из каталога"
         )
-        update_chapters_tasks_and_tests(update_chapters)
+        update_chapters_tasks_and_tests(update_chapters, branch=DEFAULT_BRANCH)
         raise click.Abort()
 
     # дальнейшее есть смысл выполнять только если мы находимся в каталоге
@@ -300,7 +300,7 @@ def cli(
         else:
             msg = green("Задания и тесты успешно обновлены")
 
-        upd = update_tasks_and_tests(task_files, test_files)
+        upd = update_tasks_and_tests(task_files, test_files, branch=DEFAULT_BRANCH)
         if upd:
             print(msg)
         raise click.Abort()
@@ -342,6 +342,7 @@ def cli(
                 passed_tasks + tasks_without_tests,
                 git_add_all=git_add_all_to_github,
                 ignore_ssl_cert=ignore_ssl_cert,
+                branch=DEFAULT_BRANCH
             )
 
     # если добавлен флаг --all, надо сохранить все изменения на github
