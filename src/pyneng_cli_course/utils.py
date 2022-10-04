@@ -12,6 +12,7 @@ from datetime import datetime, timedelta
 import click
 import github
 from rich import print as rprint
+from rich.padding import Padding
 
 from pyneng_cli_course.exceptions import PynengError
 from pyneng_cli_course import (
@@ -207,13 +208,14 @@ def send_tasks_to_check(
             f"можно посмотреть по ссылке https://github.com/pyneng/{repo}/commit/{commit_number}"
         )
     )
-    rprint(
+    hint = (
         "Все задания раздела можно сдать командой:\n"
         "[green on black]pyneng -c[/]\n\n"
         "Не забудьте посмотреть варианты решения и комментарии в проверке.\n"
         "Как посмотреть варианты решения:\n"
         "[white on black]pyneng -a[/]"
     )
+    rprint(Padding(hint, (1, 0, 1, 4)))
 
 
 def current_chapter_id():
