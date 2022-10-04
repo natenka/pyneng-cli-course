@@ -11,6 +11,7 @@ from datetime import datetime, timedelta
 
 import click
 import github
+from rich import print as rprint
 
 from pyneng_cli_course.exceptions import PynengError
 from pyneng_cli_course import (
@@ -169,7 +170,9 @@ def post_comment_to_last_commit(msg, repo, delta_days=60, ignore_ssl_cert=False)
             return last
 
 
-def send_tasks_to_check(passed_tasks, git_add_all=False, ignore_ssl_cert=False, branch="main"):
+def send_tasks_to_check(
+    passed_tasks, git_add_all=False, ignore_ssl_cert=False, branch="main"
+):
     """
     Функция отбирает все задания, которые прошли
     тесты при вызове pyneng, делает git add для файлов заданий,
@@ -203,6 +206,13 @@ def send_tasks_to_check(passed_tasks, git_add_all=False, ignore_ssl_cert=False, 
             f"Задание успешно сдано на проверку. Комментарий о сдаче задания "
             f"можно посмотреть по ссылке https://github.com/pyneng/{repo}/commit/{commit_number}"
         )
+    )
+    rprint(
+        "Все задания раздела можно сдать командой:\n"
+        "[green on black]pyneng -c[/]\n\n"
+        "Не забудьте посмотреть варианты решения и комментарии в проверке.\n"
+        "Как посмотреть варианты решения:\n"
+        "[white on black]pyneng -a[/]"
     )
 
 
@@ -362,7 +372,9 @@ def save_working_dir(branch="main"):
             )
         )
         if user_input.strip().lower() not in ("n", "no"):
-            save_changes_to_github("Сохранение изменений перед обновлением заданий", branch=branch)
+            save_changes_to_github(
+                "Сохранение изменений перед обновлением заданий", branch=branch
+            )
             print(
                 green(
                     "Все изменения в текущем каталоге сохранены. Начинаем обновление..."
